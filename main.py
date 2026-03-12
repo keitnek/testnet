@@ -21,30 +21,34 @@ def get_data():
 def play():
     data = request.json
     bet = int(data.get('bet'))
-    user_choice = data.get('choice') # '1', '2', '3', '4'
+    user_choice = data.get('choice')
     
     current_balance = wallet.get_balance()
     if bet > current_balance:
         return jsonify({"error": "Không đủ tiền!"}), 400
 
-    # 1. Gọi generator.py tạo số
     secret_num = generator.generate_number()
-    
-    # 2. Xử lý logic thắng thua
     a, b = int(secret_num[0]), int(secret_num[1])
     d = (a + b) % 10
     
+    # Logic thắng thua
     is_tai = 0 <= d <= 4
-    is_chan = d in [0, 2, 4, 6, 8]
-    
+    is_chan = d % 2 == 0
     win = False
     if user_choice == '1' and is_tai: win = True
     elif user_choice == '2' and not is_tai: win = True
     elif user_choice == '3' and is_chan: win = True
     elif user_choice == '4' and not is_chan: win = True
 
-    # 3. Cập nhật ví bằng wallet.py và lưu bằng storage.py
+    # --- ĐOẠN QUAN TRỌNG: CẬP NHẬT SỐ DƯ ---
     new_balance = current_balance + bet if win else current_balance - bet
+    
+    was_reset = False
+    # Nếu tiền về 0 (hoặc âm), tự động hồi lại 1 triệu
+    if new_balance <= 0:
+        new_balance = 1000000
+        was_reset = True
+
     wallet.update_balance(new_balance)
     storage.save_current_round(secret_num)
     storage.log_history("Web", secret_num, bet, user_choice, "THẮNG" if win else "THUA", new_balance)
@@ -54,8 +58,6 @@ def play():
         "tong": a + b,
         "don_vi": d,
         "win": win,
-        "new_balance": new_balance
+        "new_balance": new_balance,
+        "was_reset": was_reset  # Gửi thêm thông tin này về giao diện
     })
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
