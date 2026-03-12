@@ -1,54 +1,61 @@
-import time
+from flask import Flask, render_template, request, jsonify
 import generator
 import wallet
 import storage
+import os
 
-def play_online():
+app = Flask(__name__)
+
+@app.route('/')
+def index():
+    # Trả về giao diện HTML
+    return render_template('index.html')
+
+@app.route('/get_data', methods=['GET'])
+def get_data():
+    # Lấy số dư hiện tại từ wallet.py
     balance = wallet.get_balance()
-    print(f"\n" + "═"*30)
-    print(f"💰 VÍ ONLINE: {balance:,} VNĐ")
-    print("═"*30)
+    return jsonify({"balance": balance})
 
-    try:
-        bet = int(input("💵 Nhập tiền cược: "))
-        if bet > balance or bet <= 0:
-            print("❌ Tiền không đủ!"); return
-        
-        print("1. Tài | 2. Xỉu | 3. Chẵn | 4. Lẻ")
-        choice_idx = input("👉 Chọn (1-4): ")
-        mapping = {"1": "Tài", "2": "Xỉu", "3": "Chẵn", "4": "Lẻ"}
-        if choice_idx not in mapping: return
-    except: return
-
-    # --- HỆ THỐNG TỰ ĐỘNG ---
-    print("\n🎲 Đang quay số...")
-    time.sleep(1) # Giả lập chờ đợi cho kịch tính
+@app.route('/play', methods=['POST'])
+def play():
+    data = request.json
+    bet = int(data.get('bet'))
+    user_choice = data.get('choice') # '1', '2', '3', '4'
     
-    secret_num = generator.generate_number()
-    storage.save_current_round(secret_num)
+    current_balance = wallet.get_balance()
+    if bet > current_balance:
+        return jsonify({"error": "Không đủ tiền!"}), 400
 
-    # Logic thắng thua
+    # 1. Gọi generator.py tạo số
+    secret_num = generator.generate_number()
+    
+    # 2. Xử lý logic thắng thua
     a, b = int(secret_num[0]), int(secret_num[1])
     d = (a + b) % 10
+    
     is_tai = 0 <= d <= 4
     is_chan = d in [0, 2, 4, 6, 8]
     
     win = False
-    if choice_idx == '1' and is_tai: win = True
-    elif choice_idx == '2' and not is_tai: win = True
-    elif choice_idx == '3' and is_chan: win = True
-    elif choice_idx == '4' and not is_chan: win = True
+    if user_choice == '1' and is_tai: win = True
+    elif user_choice == '2' and not is_tai: win = True
+    elif user_choice == '3' and is_chan: win = True
+    elif user_choice == '4' and not is_chan: win = True
 
-    # Cập nhật kết quả
-    balance = balance + bet if win else balance - bet
-    wallet.update_balance(balance)
-    res_text = "THẮNG 🎉" if win else "THUA 💀"
-    
-    print(f"🎯 KẾT QUẢ: {secret_num} ({a}+{b}={a+b})")
-    print(f"📢 Đơn vị {d} -> {res_text}")
-    print(f"💳 Số dư mới: {balance:,} VNĐ")
+    # 3. Cập nhật ví bằng wallet.py và lưu bằng storage.py
+    new_balance = current_balance + bet if win else current_balance - bet
+    wallet.update_balance(new_balance)
+    storage.save_current_round(secret_num)
+    storage.log_history("Web", secret_num, bet, user_choice, "THẮNG" if win else "THUA", new_balance)
 
-if __name__ == "__main__":
-    while True:
-        play_online()
-        if input("\nChơi tiếp? (c/k): ").lower() != 'c': break
+    return jsonify({
+        "number": secret_num,
+        "tong": a + b,
+        "don_vi": d,
+        "win": win,
+        "new_balance": new_balance
+    })
+
+if __name__ == '__main__':
+    app.run(debug=True)
