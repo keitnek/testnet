@@ -103,22 +103,25 @@
             })
             .then(r => r.json())
             .then(d => {
-                // 3. Xử lý phản hồi
-                clearInterval(rollInterval); // Dừng hiệu ứng quay số ngay khi có kết quả từ server
+    // 3. Xử lý phản hồi
+    clearInterval(rollInterval); // Dừng hiệu ứng quay số
 
-                if(d.error) {
-                    alert(d.error);
-                    resBox.classList.add('hidden'); // Ẩn nếu có lỗi
-                    updateStatus(); // Cập nhật ví (có thể mất phí)
-                } else {
-                    updateStatus(); // Cập nhật ví sau khi thắng/thua
-                    diceDisplay.innerText = d.number; // Hiển thị con số kết quả thật
-                    // Tạo detail string từ dữ liệu
-                    let detailStr = `${d.number[0]} + ${d.number[1]} = ${d.tong} (Đơn vị: ${d.don_vi})`;
-                    detailP.innerText = detailStr; // Hiển thị chi tiết (ví dụ: a+b=tong (Đơn vị: x))
-                    resultH2.innerText = d.win ? 'THẮNG 🎉' : 'THUA 💀'; // Hiển thị kết quả thắng/thua
-                    resultH2.className = d.win ? 'win' : 'lose'; // Thêm class màu
-                    
-                    // Reset các ô nhập sau khi chơi xong
-                    betInput.value = '';
-                    choiceInput.selectedIndex = 0
+    if (d.error) {
+        alert(d.error);
+        document.getElementById('res-box').classList.add('hidden');
+    } else {
+        // Cập nhật số dư hiển thị
+        document.getElementById('bal').innerText = d.new_balance.toLocaleString();
+
+        // --- ĐOẠN MỚI THÊM VÀO ĐÂY ---
+        if (d.was_reset) {
+            alert("💸 Bạn đã cháy túi! Hệ thống tặng lại 1,000,000 VNĐ để làm lại cuộc đời.");
+        }
+        // ----------------------------
+
+        document.getElementById('dice-display').innerText = d.number;
+        document.getElementById('detail').innerText = d.detail;
+        document.getElementById('result-text').innerText = d.win ? 'THẮNG 🎉' : 'THUA 💀';
+        document.getElementById('result-text').className = d.win ? 'win' : 'lose';
+    }
+});
