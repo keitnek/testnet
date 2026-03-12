@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Emu8086 Web Bot</title>
+    <style>
+        body { background: #121212; color: white; text-align: center; font-family: sans-serif; }
+        .box { background: #1e1e1e; padding: 20px; border-radius: 10px; display: inline-block; margin-top: 50px; }
+        button { padding: 10px 20px; cursor: pointer; background: #e94560; color: white; border: none; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h2>VÍ TIỀN: <span id="balance">0</span> VNĐ</h2>
+        <input type="number" id="bet" placeholder="Tiền cược">
+        <select id="choice">
+            <option value="1">Tài (0-4)</option>
+            <option value="2">Xỉu (5-9)</option>
+        </select>
+        <button onclick="play()">CHƠI NGAY</button>
+        <div id="result"></div>
+    </div>
+
+    <script>
+        // Lấy số dư khi vừa mở trang
+        fetch('/get_data').then(res => res.json()).then(data => {
+            document.getElementById('balance').innerText = data.balance.toLocaleString();
+        });
+
+        function play() {
+            const bet = document.getElementById('bet').value;
+            const choice = document.getElementById('choice').value;
+
+            fetch('/play', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({bet: bet, choice: choice})
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.error) alert(data.error);
+                else {
+                    document.getElementById('balance').innerText = data.new_balance.toLocaleString();
+                    document.getElementById('result').innerHTML = `
+                        <h3>Số: ${data.number} (${data.tong} -> ${data.don_vi})</h3>
+                        <h2 style="color: ${data.win ? 'green' : 'red'}">${data.win ? 'THẮNG' : 'THUA'}</h2>
+                    `;
+                }
+            });
+        }
+    </script>
+</body>
+</html>
